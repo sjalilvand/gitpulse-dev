@@ -15,8 +15,14 @@ export default function RepositoryDetail() {
     queryFn: () => axios.get(`/api/v1/repositories/${id}`).then(res => res.data),
   })
 
+  // Mutation برای خلاصه هفتگی
   const weeklySummaryMutation = useMutation({
     mutationFn: () => axios.post(`/api/v1/ai/repositories/${id}/weekly-summary`).then(res => res.data),
+  })
+
+  // Mutation برای Release Notes
+  const releaseNotesMutation = useMutation({
+    mutationFn: () => axios.post(`/api/v1/ai/repositories/${id}/release-notes`).then(res => res.data),
   })
 
   if (!repo) return <div>در حال بارگذاری...</div>
@@ -50,6 +56,7 @@ export default function RepositoryDetail() {
       {tab === 'issues' && <IssueList repoId={Number(id)} />}
       {tab === 'ai' && (
         <div className="space-y-4">
+          {/* خلاصه هفتگی */}
           <div className="bg-white p-4 rounded shadow">
             <h3 className="text-lg font-semibold mb-2">خلاصه هفتگی</h3>
             <button
@@ -62,6 +69,23 @@ export default function RepositoryDetail() {
             {weeklySummaryMutation.data && (
               <div className="mt-4 p-3 bg-gray-50 rounded whitespace-pre-wrap">
                 {weeklySummaryMutation.data.summary}
+              </div>
+            )}
+          </div>
+
+          {/* یادداشت انتشار */}
+          <div className="bg-white p-4 rounded shadow">
+            <h3 className="text-lg font-semibold mb-2">یادداشت انتشار (Release Notes)</h3>
+            <button
+              onClick={() => releaseNotesMutation.mutate()}
+              disabled={releaseNotesMutation.isPending}
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+            >
+              {releaseNotesMutation.isPending ? 'در حال تولید...' : 'تولید Release Notes'}
+            </button>
+            {releaseNotesMutation.data && (
+              <div className="mt-4 p-3 bg-gray-50 rounded whitespace-pre-wrap">
+                {releaseNotesMutation.data.release_notes}
               </div>
             )}
           </div>

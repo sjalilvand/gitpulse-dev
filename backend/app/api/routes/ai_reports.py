@@ -4,6 +4,9 @@ from app.db.postgres import get_db
 from app.db.models.repository import Repository
 from app.db.models.commit import Commit
 from app.services.ai_service import generate_weekly_summary, analyze_pr_risk, classify_issue
+from app.services.ai_service import generate_release_notes  # به بالای فایل اضافه کنید
+from app.db.models.pull_request import PullRequest  # اضافه کنید
+
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
 
@@ -55,3 +58,22 @@ def classify_issue_endpoint(issue_id: int, db: Session = Depends(get_db)):
 
     classification = classify_issue(issue.title, issue.body or "")
     return {"issue_id": issue_id, **classification}
+
+@router.post("/repositories/{repo_id}/release-notes")
+def get_release_notes(repo_id: int, db: Session = Depends(get_db)):
+    repo = db.query(Repository).filter(Repository.id == repo_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found")
+
+    # دریافت کامیت‌های اخیر
+    commits = db.query(Commit).filter(Commit.repo_id == repo_id) \
+        .order_by(Commit.committed_at.desc()).limit(40).all()
+    commit_data = [{"message": c.message, "author": c.author_username} for c in commits]
+
+    # دریافت PRهای اخیر
+    prs = db.query(PullRequest).filter(PullRequest.repo_id == repo_id) \
+        .order_by(PullRequest.created_at.desc()).limit(20).all()
+    pr_data = [{"number": pr.number, "title": pr.title} for pr in prs]
+
+    notes = generate_release_notes(repo.full_name, commit_data, pr_data)
+    return {"repo_id": repo_id, "release_notes": notes}

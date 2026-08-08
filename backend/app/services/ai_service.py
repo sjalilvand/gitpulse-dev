@@ -2,8 +2,6 @@ from openai import OpenAI
 from app.core.config import get_settings
 
 _client = None
-
-
 def get_client():
     global _client
     if _client is None:
@@ -13,8 +11,6 @@ def get_client():
             base_url=settings.avalai_base_url
         )
     return _client
-
-
 def generate_weekly_summary(repo_name: str, commits: list) -> str:
     client = get_client()
     commit_messages = "\n".join([f"- {c['message'].split(chr(10))[0]}" for c in commits[:30]])
@@ -36,8 +32,6 @@ Keep it under 200 words and use bullet points."""
         return response.choices[0].message.content
     except Exception as e:
         return f"Error generating summary: {str(e)}"
-
-
 def analyze_pr_risk(pr_data: dict) -> dict:
     client = get_client()
     prompt = f"""Analyze this Pull Request for potential risks:
@@ -63,8 +57,6 @@ Return a JSON with:
         return json.loads(response.choices[0].message.content)
     except Exception:
         return {"risk_score": 0, "risk_level": "unknown", "summary": "AI analysis failed"}
-
-
 def classify_issue(title: str, body: str = "") -> dict:
     client = get_client()
     prompt = f"""Classify this GitHub issue:
@@ -87,3 +79,37 @@ Return a JSON with:
         return json.loads(response.choices[0].message.content)
     except Exception:
         return {"category": "unknown", "priority": "medium", "summary": "Classification failed"}
+
+
+def generate_release_notes(repo_name: str, commits: list, pull_requests: list) -> str:
+    client = get_client()
+
+    commit_text = "\n".join([f"- {c['message'].split(chr(10))[0]}" for c in commits[:40]])
+    pr_text = "\n".join([f"- #{pr['number']} {pr['title']}" for pr in pull_requests[:20]])
+
+    prompt = f"""Generate release notes in Persian (فارسی) for repository '{repo_name}' based on the following recent commits and pull requests:
+
+Commits:
+{commit_text}
+
+Pull Requests:
+{pr_text}
+
+Structure the release notes with these sections:
+۱. ویژگی‌های جدید (Features)
+۲. بهبودها (Improvements)
+۳. رفع اشکال (Bug Fixes)
+۴. سایر تغییرات (Other Changes)
+
+Keep it concise and professional. Use bullet points."""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5,
+            max_tokens=800
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"خطا در تولید Release Notes: {str(e)}"
